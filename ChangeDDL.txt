@@ -1,0 +1,73 @@
+ @Html.DropDownListFor(model => model.Pay_mode_Id, (SelectList)ViewData["PaymentMode"], "--Select Payment--", new { id = "txt_FolioNo", @class = "form-control" })
+
+PAGE RELOAD___ MAKE METHOD --Mapcheck()
+-------
+  function Mapcheck() { 
+    $("#txt_FolioNo").change(function () {
+        debugger
+        var selectedPayMode = $("#txt_FolioNo :selected").text();
+      
+        $.ajax({
+            url: '/PayModeBankApp/CheckMapping/', REDIRECT TO CheckMapping -CONTROLLER 
+            type: 'POST',
+            data: { PaymodeID: selectedPayMode },
+            success: function (result) {
+                if (result.exists) {
+                    var massg = 'Mapping Already Exists For ' + selectedPayMode + ',<br> The Selected PayMode Do You Want Continue ? <br><span style="color: red;">Note: Old Selected PayMode mapping will be Removed</span>';
+                    bootbox.alert(massg);
+                } else {
+
+                }
+            }
+        });
+    });
+    }
+
+--------------------------------------------CONTROLLER --------------------------------------------------------------------------------
+ public ActionResult CheckMapping(string PaymodeID )
+        {
+            PayModeBankAppBLL mPayModeBankAppBLL = null;
+            mPayModeBankAppBLL = new PayModeBankAppBLL();
+            bool mappingExists = mPayModeBankAppBLL.CheckMapping(PaymodeID); 
+
+            return Json(new { exists = mappingExists }, JsonRequestBehavior.AllowGet);
+
+        }
+---------------------------------------BLL---------------------------------------------------------------------------------------
+ public bool CheckMapping(string PaymodeID)
+        {
+
+            PayModeBankAppDAL mPayModeBankAppDAL = new PayModeBankAppDAL();
+            return mPayModeBankAppDAL.CheckMapping(PaymodeID);
+        }
+--------------------------------------------DAL--------------------------------------------------------------------------
+    public bool CheckMapping(string PaymodeID)
+        {
+            String mStoredProcName = String.Empty;
+            DataSet mDSet = new DataSet();
+            OracleCommand mDbCommand = null;
+            mStoredProcName = "SPR_PAY_MAPCHECK";
+            mDbCommand = xCurrentDatabase.xGetStoredProcCommand(mStoredProcName);
+            xCurrentDatabase.xAddInParameter(mDbCommand, "vPayModeID", xCurrentDatabase.xString, PaymodeID);
+            xCurrentDatabase.xAddInParameter(mDbCommand, "cur_out", xCurrentDatabase.xCursor, "", ParameterDirection.Output);
+            mDSet = CurrentDatabase.ExecuteDataSet(mDbCommand);
+            if (mDSet.Tables[0].Rows.Count > 0)
+            {
+                return true;
+            }
+            return false;
+        }
+----------------------------------------------------SP---------------------------------------------------------------
+create or replace NONEDITIONABLE PROCEDURE "SPR_PAY_MAPCHECK" (
+    vPayModeID IN VARCHAR2,
+     cur_out OUT sys_refcursor
+     )
+AS
+BEGIN
+
+  OPEN cur_out For
+SELECT PAY_MODE_DESC FROM TBL_PAY_MODE WHERE PAY_MODE_DESC=vPayModeID;
+
+
+END SPR_PAY_MAPCHECK;
+
